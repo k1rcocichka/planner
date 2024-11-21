@@ -32,9 +32,6 @@ class Planner(QWidget):
 
         self.task_list = QListWidget()
 
-        self.filter_cb = QCheckBox("Показать выполненные")
-        self.filter_cb.stateChanged.connect(self.show_tasks)
-
         self.save_btn = QPushButton("Сохранить")
         self.save_btn.clicked.connect(self.save_tasks)
 
@@ -47,12 +44,18 @@ class Planner(QWidget):
         self.clear_btn = QPushButton("Очистить")
         self.clear_btn.clicked.connect(self.clear)
 
+        self.combobox = QComboBox()
+        self.combobox.addItem("Показать все")
+        self.combobox.addItem("Показать выполненные")
+        self.combobox.addItem("Показать невыполненные")
+        self.combobox.activated.connect(self.filter)
+
         layot = QVBoxLayout()
         self.setLayout(layot)
 
         layot.addWidget(self.calendar)
         layot.addWidget(self.task_list)
-        layot.addWidget(self.filter_cb)
+        layot.addWidget(self.combobox)
         layot.addWidget(self.delete_button)
         layot.addWidget(self.clear_btn)
         layot.addWidget(self.save_btn)
@@ -68,16 +71,53 @@ class Planner(QWidget):
             self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{date.toString()} - {task}", self))
             q.stateChanged.connect(self.on_checkbox_changed)
 
-    def show_tasks(self):
-        self.task_list.clear()
-        completed = self.filter_cb.isChecked()
-        filtered_tasks = [task for task in self.tasks if task.completed == completed]
+    def filter(self):
+        sender = self.sender()
+        if sender.currentText() == "Показать выполненные":
+            print("Показать выполненные")
+            self.task_list.clear()
+            filtered_tasks = [task for task in self.tasks if task.completed == True]
 
-        for task in filtered_tasks:
-            task_item = QListWidgetItem(f"{task.time} - {task.task}")
-            task_item.task = task
-            self.task_list.addItem(task_item)
+            for task in filtered_tasks:
+                task_item = QListWidgetItem()
+                task_item.task = task
+                self.task_list.addItem(task_item)
+                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
+                q.stateChanged.connect(self.on_checkbox_changed)
+                if task.completed:
+                    q.setChecked(True)
+                else:
+                    q.setChecked(False)
 
+        elif sender.currentText() == "Показать невыполненные":
+            print("Показать невыполненные")
+            self.task_list.clear()
+            filtered_tasks = [task for task in self.tasks if task.completed == False]
+            for task in filtered_tasks:
+                task_item = QListWidgetItem()
+                task_item.task = task
+                self.task_list.addItem(task_item)
+                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
+                q.stateChanged.connect(self.on_checkbox_changed)
+                if task.completed:
+                    q.setChecked(True)
+                else:
+                    q.setChecked(False)
+
+        else:
+            print("Показать все")
+            self.task_list.clear()
+            for task in self.tasks:
+                task_item = QListWidgetItem()
+                task_item.task = task
+                self.task_list.addItem(task_item)
+                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
+                q.stateChanged.connect(self.on_checkbox_changed)
+                if task.completed:
+                    q.setChecked(True)
+                else:
+                    q.setChecked(False)
+ 
     def save_tasks(self):
         with open("tasks.txt", "w") as file:
             for task in self.tasks:
@@ -105,9 +145,12 @@ class Planner(QWidget):
         self.task_list.clear()
 
     def on_checkbox_changed(self):
-        box = self.sender()
-        if box.isChecked():
-             print(box.text())
+        sender: QCheckBox = self.sender()
+        control = [control for control in self.tasks if control.task in sender.text()]
+        if sender.isChecked():
+            control[0].completed = True
+        else:
+            control[0].completed = False
 
 
 if __name__ == "__main__":
