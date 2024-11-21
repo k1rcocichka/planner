@@ -8,10 +8,11 @@ from PyQt6.QtGui import *
 
 
 class Task:
-    def __init__(self, task, time, completed):
+    def __init__(self, task, time, completed, color):
         self.task = task
         self.time = time
         self.completed = completed
+        self.color = color
 
 
 class Planner(QWidget):
@@ -39,44 +40,76 @@ class Planner(QWidget):
         self.load_btn.setStyleSheet('QPushButton {background-color: #274c77}')
         self.load_btn.clicked.connect(self.load_tasks)
         
-        self.delete_button = QPushButton('Удалить задачу')
-        self.delete_button.setStyleSheet('QPushButton {background-color: #274c77}')
-        self.delete_button.clicked.connect(self.delete_task)
+        self.delete_btn = QPushButton('Удалить задачу')
+        self.delete_btn.setStyleSheet('QPushButton {background-color: #274c77}')
+        self.delete_btn.clicked.connect(self.delete_task)
         
         self.clear_btn = QPushButton("Очистить")
         self.clear_btn.setStyleSheet('QPushButton {background-color: #274c77}')
         self.clear_btn.clicked.connect(self.clear)
+
+        self.color_btn = QPushButton("Изменить цвет")
+        self.color_btn.setStyleSheet('QPushButton {background-color: #274c77}')
+        self.color_btn.clicked.connect(self.color_change)
         
-        self.combobox = QComboBox()
-        self.combobox.addItem("Показать все")
-        self.combobox.addItem("Показать выполненные")
-        self.combobox.addItem("Показать невыполненные")
-        self.combobox.activated.connect(self.filter)
+        self.parametr_cb = QComboBox()
+        self.parametr_cb.addItem("Показать все")
+        self.parametr_cb.addItem("Показать выполненные")
+        self.parametr_cb.addItem("Показать невыполненные")
+        self.parametr_cb.activated.connect(self.filter)
 
-        self.labelpm = QLabel('Параметры:')
-        self.labelpm.setStyleSheet('font-family: Courier New; font-size: 14px;')
+        self.color_cb = QComboBox()
+        self.color_cb.addItem("Красный")
+        self.color_cb.addItem("Оранжевый")
+        self.color_cb.addItem("Жёлтый")
+        self.color_cb.addItem("Зелёный")
+        self.color_cb.activated.connect(self.default_color)
 
-        self.labeltask = QLabel('Задачи:')
-        self.labeltask.setStyleSheet('font-family: Courier New; font-size: 14px;')
+        self.color = "red"
+        self.color_dict = {"Красный": "red",
+                           "Оранжевый": "orange",
+                           "Жёлтый": "yellow",
+                           "Зелёный": "green",}
+        self.brush = QBrush()
 
-        layot = QVBoxLayout()
-        self.setLayout(layot)
+        self.parametr_lb = QLabel('Параметры:')
+        self.parametr_lb.setStyleSheet('font-family: Courier New; font-size: 14px;')
 
-        layot.addWidget(self.calendar)
-        layot.addWidget(self.labeltask)
-        layot.addWidget(self.task_list)
-        layot.addWidget(self.labelpm)
-        layot.addWidget(self.combobox)
-        layot.addWidget(self.delete_button)
-        layot.addWidget(self.clear_btn)
-        layot.addWidget(self.save_btn)
-        layot.addWidget(self.load_btn)
+        self.task_lb = QLabel('Задачи:')
+        self.task_lb.setStyleSheet('font-family: Courier New; font-size: 14px;')
+
+        self.use_lb = QLabel('Взаимодействия:')
+        self.use_lb.setStyleSheet('font-family: Courier New; font-size: 14px;')
+
+        layot1 = QVBoxLayout()
+        layot2 = QVBoxLayout()
+        layot3 = QHBoxLayout()
+        layot4 = QVBoxLayout()
+
+        layot4.addWidget(self.calendar)
+        layot1.addWidget(self.task_lb)
+        layot1.addWidget(self.task_list)
+        layot1.addWidget(self.parametr_lb)
+        layot1.addWidget(self.parametr_cb)
+        layot1.addWidget(self.color_cb)
+        layot1.addWidget(self.color_btn)
+        layot3.addLayout(layot1)
+
+        layot2.addWidget(self.use_lb)
+        layot2.addWidget(self.delete_btn)
+        layot2.addWidget(self.clear_btn)
+        layot2.addWidget(self.save_btn)
+        layot2.addWidget(self.load_btn)
+        layot3.addLayout(layot2)
+
+        layot4.addLayout(layot3)
+        self.setLayout(layot4)
 
     def add_task(self, date):
         task, ok = QInputDialog.getText(self, "Добавить задачу", "Введите задачу:")
         if ok:
             task_item = QListWidgetItem()
-            task_item.task = Task(task, date.toString(), False)
+            task_item.task = Task(task, date.toString(), False, '#BDE0FF')
             self.tasks.append(task_item.task)
             self.task_list.addItem(task_item)
             self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{date.toString()} - {task}", self))
@@ -146,12 +179,24 @@ class Planner(QWidget):
                 task_item.task = task
                 self.task_list.addItem(task_item)
 
-    def delete_task(self): #нужна помощь Ильи
+    def delete_task(self): #нужна хелпа
         current_row = self.task_list.currentRow()
         if current_row >= 0:
             current_item = self.task_list.takeItem(current_row)
             del current_item
 
+    def default_color(self): #очень нужна хелпа
+        sender = self.sender()
+        self.color = self.color_dict[sender.currentText()] 
+        print(self.color)
+        
+    def color_change(self):
+        current_row = self.task_list.currentRow()
+        if current_row >= 0:
+            current_item = self.task_list.takeItem(current_row)
+            self.brush.setColor(QColor(self.color))
+            current_item.setBackground(self.brush)
+            
     def clear(self):
         self.task_list.clear()
 
