@@ -5,7 +5,6 @@ import datetime
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
-#from qtconsole import QtCore
 
 
 class Task:
@@ -23,7 +22,7 @@ class Planner(QWidget):
     def initUI(self):
         self.setGeometry(100, 100, 500, 500)
         self.setWindowTitle("Планировщик")
-
+        
         self.tasks = []
 
         self.calendar = QCalendarWidget()
@@ -33,28 +32,40 @@ class Planner(QWidget):
         self.task_list = QListWidget()
 
         self.save_btn = QPushButton("Сохранить")
+        self.save_btn.setStyleSheet('QPushButton {background-color: #274c77}')
         self.save_btn.clicked.connect(self.save_tasks)
 
         self.load_btn = QPushButton("Загрузить")
+        self.load_btn.setStyleSheet('QPushButton {background-color: #274c77}')
         self.load_btn.clicked.connect(self.load_tasks)
-
+        
         self.delete_button = QPushButton('Удалить задачу')
+        self.delete_button.setStyleSheet('QPushButton {background-color: #274c77}')
         self.delete_button.clicked.connect(self.delete_task)
-
+        
         self.clear_btn = QPushButton("Очистить")
+        self.clear_btn.setStyleSheet('QPushButton {background-color: #274c77}')
         self.clear_btn.clicked.connect(self.clear)
-
+        
         self.combobox = QComboBox()
         self.combobox.addItem("Показать все")
         self.combobox.addItem("Показать выполненные")
         self.combobox.addItem("Показать невыполненные")
         self.combobox.activated.connect(self.filter)
 
+        self.labelpm = QLabel('Параметры:')
+        self.labelpm.setStyleSheet('font-family: Courier New; font-size: 14px;')
+
+        self.labeltask = QLabel('Задачи:')
+        self.labeltask.setStyleSheet('font-family: Courier New; font-size: 14px;')
+
         layot = QVBoxLayout()
         self.setLayout(layot)
 
         layot.addWidget(self.calendar)
+        layot.addWidget(self.labeltask)
         layot.addWidget(self.task_list)
+        layot.addWidget(self.labelpm)
         layot.addWidget(self.combobox)
         layot.addWidget(self.delete_button)
         layot.addWidget(self.clear_btn)
@@ -135,7 +146,7 @@ class Planner(QWidget):
                 task_item.task = task
                 self.task_list.addItem(task_item)
 
-    def delete_task(self):
+    def delete_task(self): #нужна помощь Ильи
         current_row = self.task_list.currentRow()
         if current_row >= 0:
             current_item = self.task_list.takeItem(current_row)
@@ -155,6 +166,7 @@ class Planner(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
     ex = Planner()
     ex.show()
     sys.exit(app.exec())
