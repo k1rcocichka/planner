@@ -66,10 +66,10 @@ class Planner(QWidget):
         self.color_cb.activated.connect(self.default_color)
 
         self.color = "red"
-        self.color_dict = {"Красный": "red",
-                           "Оранжевый": "orange",
-                           "Жёлтый": "yellow",
-                           "Зелёный": "green",}
+        self.color_dict = {"Красный": "#7fc97f",
+                           "Оранжевый": "#7fc97f",
+                           "Жёлтый": "#7fc97f",
+                           "Зелёный": "#7fc97f",}
         self.brush = QBrush()
 
         self.parametr_lb = QLabel('Параметры:')
@@ -109,7 +109,7 @@ class Planner(QWidget):
         task, ok = QInputDialog.getText(self, "Добавить задачу", "Введите задачу:")
         if ok:
             task_item = QListWidgetItem()
-            task_item.task = Task(task, date.toString(), False, '#BDE0FF')
+            task_item.task = Task(task, date.toString(), False, 'Обычный')
             self.tasks.append(task_item.task)
             self.task_list.addItem(task_item)
             self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{date.toString()} - {task}", self))
@@ -165,7 +165,7 @@ class Planner(QWidget):
     def save_tasks(self):
         with open("tasks.txt", "w") as file:
             for task in self.tasks:
-                file.write(f"{task.task},{task.time},{task.completed}\n")
+                file.write(f"{task.task},{task.time},{task.completed},{task.color}\n")
 
     def load_tasks(self):
         self.tasks = []
@@ -173,7 +173,7 @@ class Planner(QWidget):
         with open("tasks.txt", "r") as file:
             for line in file:
                 task_str = line.strip().split(",")
-                task = Task(task_str[0], task_str[1], task_str[2] == "True")
+                task = Task(task_str[0], task_str[1], task_str[2] == "True", task_str[3])
                 self.tasks.append(task)
                 task_item = QListWidgetItem(f"{task.time} - {task.task}")
                 task_item.task = task
@@ -193,9 +193,9 @@ class Planner(QWidget):
     def color_change(self):
         current_row = self.task_list.currentRow()
         if current_row >= 0:
-            current_item = self.task_list.takeItem(current_row)
-            self.brush.setColor(QColor(self.color))
-            current_item.setBackground(self.brush)
+            current_item = self.task_list.item(current_row)
+            current_item.setForeground(QColor('red'))
+            print(current_item.setWhatsThis)
             
     def clear(self):
         self.task_list.clear()
