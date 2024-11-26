@@ -63,10 +63,10 @@ class Planner(QWidget):
         self.color_cb.addItem("Оранжевый")
         self.color_cb.addItem("Жёлтый")
         self.color_cb.addItem("Зелёный")
-        self.color_cb.activated.connect(self.default_color)
 
-        self.color = "red"
-        self.color_dict = {"Красный": "#7fc97f",
+        
+        self.color = "Красный"
+        self.color_dict = {"Красный": "#e80000",
                            "Оранжевый": "#7fc97f",
                            "Жёлтый": "#7fc97f",
                            "Зелёный": "#7fc97f",}
@@ -184,18 +184,15 @@ class Planner(QWidget):
         if current_row >= 0:
             current_item = self.task_list.takeItem(current_row)
             del current_item
-
-    def default_color(self): #очень нужна хелпа
-        sender = self.sender()
-        self.color = self.color_dict[sender.currentText()] 
-        print(self.color)
         
     def color_change(self):
         current_row = self.task_list.currentRow()
         if current_row >= 0:
             current_item = self.task_list.item(current_row)
-            current_item.setForeground(QColor('red'))
-            print(current_item.setWhatsThis)
+            brush = QBrush(QColor(self.color_dict[self.color_cb.currentText()]))
+            current_item.setBackground(brush)
+            self.update()
+            print("change color")
             
     def clear(self):
         self.task_list.clear()
