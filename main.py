@@ -1,5 +1,4 @@
 import sys
-import datetime
 
 
 from PyQt6.QtWidgets import *
@@ -8,14 +7,15 @@ from PyQt6.QtGui import *
 
 
 class Task:
-    def __init__(self, task, time, completed, color):
+    """класс для наших задач"""
+    def __init__(self, task, time, completed):
         self.task = task
         self.time = time
         self.completed = completed
-        self.color = color
 
 
 class Planner(QWidget):
+    """конструктор программы"""
     def __init__(self):
         super().__init__()
         self.initUI()
@@ -63,13 +63,14 @@ class Planner(QWidget):
         self.color_cb.addItem("Оранжевый")
         self.color_cb.addItem("Жёлтый")
         self.color_cb.addItem("Зелёный")
-        self.color_cb.activated.connect(self.default_color)
 
-        self.color = "red"
-        self.color_dict = {"Красный": "#7fc97f",
-                           "Оранжевый": "#7fc97f",
-                           "Жёлтый": "#7fc97f",
-                           "Зелёный": "#7fc97f",}
+        self.color = "Красный"
+
+        """словарь с хешами цветов"""
+        self.color_dict = {"Красный": "#e80000",
+                           "Оранжевый": "#ff8c00",
+                           "Жёлтый": "#ffd000",
+                           "Зелёный": "#4fb76c",}
         self.brush = QBrush()
 
         self.parametr_lb = QLabel('Параметры:')
@@ -80,7 +81,7 @@ class Planner(QWidget):
 
         self.use_lb = QLabel('Взаимодействия:')
         self.use_lb.setStyleSheet('font-family: Courier New; font-size: 14px;')
-
+        
         layot1 = QVBoxLayout()
         layot2 = QVBoxLayout()
         layot3 = QHBoxLayout()
@@ -102,20 +103,23 @@ class Planner(QWidget):
         layot2.addWidget(self.load_btn)
         layot3.addLayout(layot2)
 
+        """лайату в лайату безумие"""
         layot4.addLayout(layot3)
         self.setLayout(layot4)
 
     def add_task(self, date):
+        """тут создаются новые задачи, и добавляется к ним чекбокс"""
         task, ok = QInputDialog.getText(self, "Добавить задачу", "Введите задачу:")
         if ok:
             task_item = QListWidgetItem()
-            task_item.task = Task(task, date.toString(), False, 'Обычный')
+            task_item.task = Task(task, date.toString(), False)
             self.tasks.append(task_item.task)
             self.task_list.addItem(task_item)
             self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{date.toString()} - {task}", self))
             q.stateChanged.connect(self.on_checkbox_changed)
 
     def filter(self):
+        """фильтр из чекбокса на параметры"""
         sender = self.sender()
         if sender.currentText() == "Показать выполненные":
             print("Показать выполненные")
@@ -163,9 +167,10 @@ class Planner(QWidget):
                     q.setChecked(False)
  
     def save_tasks(self):
+        """сохраняем все наши задачу в файл в нашей папке"""
         with open("tasks.txt", "w") as file:
             for task in self.tasks:
-                file.write(f"{task.task},{task.time},{task.completed},{task.color}\n")
+                file.write(f"{task.task},{task.time},{task.completed}\n")
 
     def load_tasks(self):
         self.tasks = []
@@ -173,34 +178,41 @@ class Planner(QWidget):
         with open("tasks.txt", "r") as file:
             for line in file:
                 task_str = line.strip().split(",")
-                task = Task(task_str[0], task_str[1], task_str[2] == "True", task_str[3])
+                task = Task(task_str[0], task_str[1], task_str[2] == "True")
                 self.tasks.append(task)
-                task_item = QListWidgetItem(f"{task.time} - {task.task}")
+                task_item = QListWidgetItem()
                 task_item.task = task
                 self.task_list.addItem(task_item)
-
-    def delete_task(self): #нужна хелпа
+                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
+                q.stateChanged.connect(self.on_checkbox_changed)
+                """проверка чекбокса"""
+                if task.completed:
+                    q.setChecked(True)
+                else:
+                    q.setChecked(False)
+                
+    def delete_task(self): 
         current_row = self.task_list.currentRow()
         if current_row >= 0:
             current_item = self.task_list.takeItem(current_row)
             del current_item
-
-    def default_color(self): #очень нужна хелпа
-        sender = self.sender()
-        self.color = self.color_dict[sender.currentText()] 
-        print(self.color)
         
     def color_change(self):
+        """меням цвет, выбранный из комбо-бокса с цветами"""
         current_row = self.task_list.currentRow()
         if current_row >= 0:
             current_item = self.task_list.item(current_row)
-            current_item.setForeground(QColor('red'))
-            print(current_item.setWhatsThis)
+            brush = QBrush(QColor(self.color_dict[self.color_cb.currentText()]))
+            current_item.setBackground(brush)
+            self.update()
+            print("change color")
             
     def clear(self):
+        """удаление всех задач"""
         self.task_list.clear()
 
     def on_checkbox_changed(self):
+        """измение галочки чекбокса"""
         sender: QCheckBox = self.sender()
         control = [control for control in self.tasks if control.task in sender.text()]
         if sender.isChecked():
@@ -208,10 +220,14 @@ class Planner(QWidget):
         else:
             control[0].completed = False
 
+def my_hook(cls, exception, traceback):
+    sys.__excepthook__(cls, exception, traceback)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle('Fusion')
+    app.setStyle('Fusion') #меняем оформление
     ex = Planner()
     ex.show()
+    sys.excepthook = my_hook
     sys.exit(app.exec())
