@@ -1,2 +1,1 @@
-# planner-mini
 my project
