@@ -103,7 +103,7 @@ class Planner(QWidget):
         layot2.addWidget(self.load_btn)
         layot3.addLayout(layot2)
 
-        """лайату в лайату безумие"""
+        """лайауты в лайаут"""
         layot4.addLayout(layot3)
         self.setLayout(layot4)
 
@@ -173,6 +173,7 @@ class Planner(QWidget):
                 file.write(f"{task.task},{task.time},{task.completed}\n")
 
     def load_tasks(self):
+        """загрузить задаи в файл 'tasks.txt'"""
         self.tasks = []
         self.task_list.clear()
         with open("tasks.txt", "r") as file:
@@ -191,7 +192,8 @@ class Planner(QWidget):
                 else:
                     q.setChecked(False)
                 
-    def delete_task(self): 
+    def delete_task(self):
+        """удаление задачи из списка и виджета"""
         current_row = self.task_list.currentRow()
         if current_row >= 0:
             current_item = self.task_list.takeItem(current_row)
@@ -220,7 +222,9 @@ class Planner(QWidget):
         else:
             control[0].completed = False
 
+
 def my_hook(cls, exception, traceback):
+    """дебаггер"""
     sys.__excepthook__(cls, exception, traceback)
 
 
