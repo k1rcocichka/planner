@@ -1,26 +1,30 @@
 import sys
-
-
-from PyQt6.QtWidgets import *
-from PyQt6.QtCore import *
-from PyQt6.QtGui import *
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
+    QPushButton, QCalendarWidget, QInputDialog, QCheckBox, QLabel, QComboBox, QMessageBox
+)
+from PyQt6.QtCore import Qt, QTranslator, QLocale
+from PyQt6.QtGui import QColor
 
 
 class Task:
-    """класс для наших задач"""
-    def __init__(self, task, time, completed):
+    """Класс для хранения информации о задаче."""
+    def __init__(self, task, time, completed=False, color="#ffffff"):
         self.task = task
         self.time = time
         self.completed = completed
+        self.color = color
 
 
 class Planner(QWidget):
-    """конструктор программы"""
+    """Основной класс приложения."""
     def __init__(self):
         super().__init__()
+        self.tasks = []
         self.initUI()
 
     def initUI(self):
+        """Инициализация интерфейса."""
         self.setGeometry(100, 100, 500, 500)
         self.setWindowTitle("Планировщик")
         
@@ -31,14 +35,6 @@ class Planner(QWidget):
         self.calendar.clicked.connect(self.add_task)
 
         self.task_list = QListWidget()
-
-        self.save_btn = QPushButton("Сохранить")
-        self.save_btn.setStyleSheet('QPushButton {background-color: #274c77}')
-        self.save_btn.clicked.connect(self.save_tasks)
-
-        self.load_btn = QPushButton("Загрузить")
-        self.load_btn.setStyleSheet('QPushButton {background-color: #274c77}')
-        self.load_btn.clicked.connect(self.load_tasks)
         
         self.delete_btn = QPushButton('Удалить задачу')
         self.delete_btn.setStyleSheet('QPushButton {background-color: #274c77}')
@@ -58,6 +54,8 @@ class Planner(QWidget):
         self.parametr_cb.addItem("Показать невыполненные")
         self.parametr_cb.activated.connect(self.filter)
 
+        self.task_list.itemDoubleClicked.connect(self.edit_task)
+
         self.color_cb = QComboBox()
         self.color_cb.addItem("Красный")
         self.color_cb.addItem("Оранжевый")
@@ -71,7 +69,6 @@ class Planner(QWidget):
                            "Оранжевый": "#ff8c00",
                            "Жёлтый": "#ffd000",
                            "Зелёный": "#4fb76c",}
-        self.brush = QBrush()
 
         self.parametr_lb = QLabel('Параметры:')
         self.parametr_lb.setStyleSheet('font-family: Courier New; font-size: 14px;')
@@ -99,130 +96,113 @@ class Planner(QWidget):
         layot2.addWidget(self.use_lb)
         layot2.addWidget(self.delete_btn)
         layot2.addWidget(self.clear_btn)
-        layot2.addWidget(self.save_btn)
-        layot2.addWidget(self.load_btn)
         layot3.addLayout(layot2)
 
         """лайауты в лайаут"""
         layot4.addLayout(layot3)
         self.setLayout(layot4)
 
+        self.load_tasks()
+
     def add_task(self, date):
-        """тут создаются новые задачи, и добавляется к ним чекбокс"""
+        """Добавление новой задачи."""
         task, ok = QInputDialog.getText(self, "Добавить задачу", "Введите задачу:")
-        if ok:
-            task_item = QListWidgetItem()
-            task_item.task = Task(task, date.toString(), False)
-            self.tasks.append(task_item.task)
-            self.task_list.addItem(task_item)
-            self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{date.toString()} - {task}", self))
-            q.stateChanged.connect(self.on_checkbox_changed)
+        if ok and task:
+            new_task = Task(task, date.toString())  # По умолчанию цвет фона — белый
+            self.tasks.append(new_task)
+            self.update_task_list()
+
+        self.save_tasks()
+
+    def update_task_list(self, filter_text="Показать все"):
+        """Обновление списка задач."""
+        self.task_list.clear()
+        for task in self.tasks:
+            if filter_text == "Показать выполненные" and not task.completed:
+                continue
+            if filter_text == "Показать невыполненные" and task.completed:
+                continue
+
+            item = QListWidgetItem(f"    {task.time} - {task.task}")
+            item.task = task
+            item.setBackground(QColor(task.color))  # Устанавливаем цвет фона
+            self.task_list.addItem(item)
+            checkbox = QCheckBox()
+            checkbox.setChecked(task.completed)
+            checkbox.stateChanged.connect(lambda state, t=task: self.on_checkbox_changed(t, state))
+            self.task_list.setItemWidget(item, checkbox)
+    
+
+    def on_checkbox_changed(self, task, state):
+        """Обработка изменения состояния чекбокса."""
+        task.completed = state == Qt.CheckState.Checked.value
+        self.save_tasks()
 
     def filter(self):
-        """фильтр из чекбокса на параметры"""
-        sender = self.sender()
-        if sender.currentText() == "Показать выполненные":
-            print("Показать выполненные")
-            self.task_list.clear()
-            filtered_tasks = [task for task in self.tasks if task.completed == True]
+        """Фильтрация задач."""
+        filter_text = self.parametr_cb.currentText()
+        self.update_task_list(filter_text)
 
-            for task in filtered_tasks:
-                task_item = QListWidgetItem()
-                task_item.task = task
-                self.task_list.addItem(task_item)
-                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
-                q.stateChanged.connect(self.on_checkbox_changed)
-                if task.completed:
-                    q.setChecked(True)
-                else:
-                    q.setChecked(False)
-
-        elif sender.currentText() == "Показать невыполненные":
-            print("Показать невыполненные")
-            self.task_list.clear()
-            filtered_tasks = [task for task in self.tasks if task.completed == False]
-            for task in filtered_tasks:
-                task_item = QListWidgetItem()
-                task_item.task = task
-                self.task_list.addItem(task_item)
-                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
-                q.stateChanged.connect(self.on_checkbox_changed)
-                if task.completed:
-                    q.setChecked(True)
-                else:
-                    q.setChecked(False)
-
-        else:
-            print("Показать все")
-            self.task_list.clear()
-            for task in self.tasks:
-                task_item = QListWidgetItem()
-                task_item.task = task
-                self.task_list.addItem(task_item)
-                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
-                q.stateChanged.connect(self.on_checkbox_changed)
-                if task.completed:
-                    q.setChecked(True)
-                else:
-                    q.setChecked(False)
- 
     def save_tasks(self):
-        """сохраняем все наши задачу в файл в нашей папке"""
-        with open("tasks.txt", "w") as file:
-            for task in self.tasks:
-                file.write(f"{task.task},{task.time},{task.completed}\n")
+        """Сохранение задач в файл."""
+        try:
+            with open("tasks.txt", "w") as file:
+                for task in self.tasks:
+                    file.write(f"{task.task},{task.time},{task.completed},{task.color}\n")  # Сохраняем цвет
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить задачи: {e}")
 
     def load_tasks(self):
-        """загрузить задаи в файл 'tasks.txt'"""
-        self.tasks = []
-        self.task_list.clear()
-        with open("tasks.txt", "r") as file:
-            for line in file:
-                task_str = line.strip().split(",")
-                task = Task(task_str[0], task_str[1], task_str[2] == "True")
-                self.tasks.append(task)
-                task_item = QListWidgetItem()
-                task_item.task = task
-                self.task_list.addItem(task_item)
-                self.task_list.setItemWidget(task_item, q:=QCheckBox(f"{task.time} - {task.task}", self))
-                q.stateChanged.connect(self.on_checkbox_changed)
-                """проверка чекбокса"""
-                if task.completed:
-                    q.setChecked(True)
-                else:
-                    q.setChecked(False)
-                
+        """Загрузка задач из файла."""
+        try:
+            with open("tasks.txt", "r") as file:
+                self.tasks = []
+                for line in file:
+                    task_str = line.strip().split(",")
+                    task = Task(
+                        task_str[0],
+                        task_str[1],
+                        task_str[2] == "True",
+                        task_str[3] if len(task_str) > 3 else "#ffffff"  # Загружаем цвет
+                    )
+                    self.tasks.append(task)
+            self.update_task_list()
+            QMessageBox.information(self, "Успех", "Задачи успешно загружены.")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить задачи: {e}")
+
     def delete_task(self):
-        """удаление задачи из списка и виджета"""
-        current_row = self.task_list.currentRow()
-        if current_row >= 0:
-            current_item = self.task_list.takeItem(current_row)
-            del current_item
-        
+        """Удаление выбранной задачи."""
+        current_item = self.task_list.currentItem()
+        if current_item:
+            self.tasks.remove(current_item.task)
+            self.update_task_list()
+        self.save_tasks()
+
     def color_change(self):
-        """меням цвет, выбранный из комбо-бокса с цветами"""
-        current_row = self.task_list.currentRow()
-        if current_row >= 0:
-            current_item = self.task_list.item(current_row)
-            brush = QBrush(QColor(self.color_dict[self.color_cb.currentText()]))
-            current_item.setBackground(brush)
-            self.update()
-            print("change color")
-            
+        """Изменение цвета фона выбранной задачи."""
+        current_item = self.task_list.currentItem()
+        if current_item:
+            selected_color = self.color_cb.currentText()
+            color_hex = self.color_dict.get(selected_color, "#ffffff")  # Получаем HEX-код цвета
+            current_item.task.color = color_hex  # Обновляем цвет в объекте задачи
+            current_item.setBackground(QColor(color_hex))  # Применяем цвет к элементу списка
+        self.save_tasks()
+
     def clear(self):
-        """удаление всех задач"""
-        self.task_list.clear()
+        """Очистка списка задач."""
+        self.tasks = []
+        self.update_task_list()
+        self.save_tasks()
 
-    def on_checkbox_changed(self):
-        """измение галочки чекбокса"""
-        sender: QCheckBox = self.sender()
-        control = [control for control in self.tasks if control.task in sender.text()]
-        if sender.isChecked():
-            control[0].completed = True
-        else:
-            control[0].completed = False
-
-
+    def edit_task(self, item):
+        task = item.task
+        new_task, ok = QInputDialog.getText(self, "Редактировать задачу", "Введите новую задачу:", text=task.task)
+        if ok and new_task:
+            task.task = new_task
+            self.update_task_list()
+            self.save_tasks()
+    
 def my_hook(cls, exception, traceback):
     """дебаггер"""
     sys.__excepthook__(cls, exception, traceback)
@@ -230,8 +210,7 @@ def my_hook(cls, exception, traceback):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle('Fusion') #меняем оформление
-    ex = Planner()
-    ex.show()
+    planner = Planner()
+    planner.show()
     sys.excepthook = my_hook
     sys.exit(app.exec())
