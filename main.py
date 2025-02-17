@@ -1,19 +1,23 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
-    QPushButton, QCalendarWidget, QInputDialog, QCheckBox, QLabel, QComboBox, QMessageBox
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,QTimeEdit,
+    QPushButton, QCalendarWidget, QInputDialog, QCheckBox, QLabel, QComboBox, QMessageBox,
+    QSystemTrayIcon, QMenu
 )
-from PyQt6.QtCore import Qt, QTranslator, QLocale
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QTime, QUrl, QTimer, QDateTime
+from PyQt6.QtGui import QColor, QIcon, QAction
+from PyQt6.QtMultimedia import QSoundEffect
 
 
 class Task:
     """Класс для хранения информации о задаче."""
-    def __init__(self, task, time, completed=False, color="#ffffff"):
+    def __init__(self, task, date, time, completed=False, color="#ffffff", reminder_time=None):
         self.task = task
-        self.time = time
+        self.date = date  # Дата задачи
+        self.time = time  # Время задачи
         self.completed = completed
         self.color = color
+        self.reminder_time = reminder_time  # Время напоминания
 
 
 class Planner(QWidget):
@@ -78,12 +82,27 @@ class Planner(QWidget):
 
         self.use_lb = QLabel('Взаимодействия:')
         self.use_lb.setStyleSheet('font-family: Courier New; font-size: 14px;')
+
+        self.time_edit = QTimeEdit()
+        self.time_edit.setTime(QTime.currentTime())  # Устанавливаем текущее время по умолчанию
+        self.time_edit.setDisplayFormat("HH:mm")
+
+        self.reminder_checkbox = QCheckBox("Включить напоминание")
+        self.reminder_checkbox.setChecked(False)
+
+        self.sound_effect = QSoundEffect()
+        self.sound_effect.setSource(QUrl.fromLocalFile("dame-da-ne.wav"))
+
+        # Добавляем виджеты в интерфейс
         
         layot1 = QVBoxLayout()
         layot2 = QVBoxLayout()
         layot3 = QHBoxLayout()
         layot4 = QVBoxLayout()
 
+        layot1.addWidget(QLabel("Время задачи:"))
+        layot1.addWidget(self.time_edit)
+        layot1.addWidget(self.reminder_checkbox)
         layot4.addWidget(self.calendar)
         layot1.addWidget(self.task_lb)
         layot1.addWidget(self.task_list)
@@ -102,17 +121,91 @@ class Planner(QWidget):
         layot4.addLayout(layot3)
         self.setLayout(layot4)
 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.check_reminders)
+        self.timer.start(60000)
+
         self.load_tasks()
+
+        # Создаем иконку в системном трее
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon("icon.jpg"))  # Укажите путь к иконке
+        self.tray_icon.setVisible(True)
+
+        # Создаем меню для иконки в трее
+        tray_menu = QMenu()
+
+        # Добавляем действие "Показать"
+        show_action = QAction("Показать", self)
+        show_action.triggered.connect(self.show)
+        tray_menu.addAction(show_action)
+
+        # Добавляем действие "Скрыть"
+        hide_action = QAction("Скрыть", self)
+        hide_action.triggered.connect(self.close)
+        tray_menu.addAction(hide_action)
+
+        # Добавляем действие "Выйти"
+        quit_action = QAction("Выйти", self)
+        quit_action.triggered.connect(self.exit_)
+        tray_menu.addAction(quit_action)
+
+        # Устанавливаем меню для иконки в трее
+        self.tray_icon.setContextMenu(tray_menu)
+
+        # Обработка клика по иконке в трее
+        self.tray_icon.activated.connect(self.on_tray_icon_activated)
+
+    def closeEvent(self, event):
+        """Переопределение события закрытия окна."""
+        event.ignore()  # Игнорируем закрытие окна
+        self.hide()  # Скрываем окно
+        self.tray_icon.showMessage("Планировщик", "Приложение свернуто в трей.", QSystemTrayIcon.MessageIcon.Information)
+    
+    def exit_(self):
+        exit()
+
+    def on_tray_icon_activated(self, reason):
+        """Обработка кликов по иконке в трее."""
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self.show()  # Показываем окно при клике на иконку
+
+    def check_reminders(self):
+        """Проверка времени напоминания."""
+        current_time = QDateTime.currentDateTime()
+        for task in self.tasks:
+            if task.reminder_time and not task.completed:
+                reminder_datetime = QDateTime.fromString(f"{task.date} {task.reminder_time}", "yyyy-MM-dd HH:mm")
+                if current_time >= reminder_datetime:
+                    self.sound_effect.play()
+                    QMessageBox.information(self, "Напоминание", f"Задача: {task.task}")
+                    task.reminder_time = None  # Отключаем напоминание после срабатывания
+                    self.save_tasks()
 
     def add_task(self, date):
         """Добавление новой задачи."""
         task, ok = QInputDialog.getText(self, "Добавить задачу", "Введите задачу:")
         if ok and task:
-            new_task = Task(task, date.toString())  # По умолчанию цвет фона — белый
+            # Получаем время задачи
+            time = self.time_edit.time().toString("HH:mm")
+
+            # Проверяем, включено ли напоминание
+            reminder_time = None
+            if self.reminder_checkbox.isChecked():
+                reminder_time = self.time_edit.time().toString("HH:mm")
+
+            # Создаем новую задачу
+            new_task = Task(
+                task=task,
+                date=date.toString("yyyy-MM-dd"),  # Форматируем дату
+                time=time,  # Время задачи
+                reminder_time=reminder_time  # Время напоминания (если включено)
+            )
+
+            # Добавляем задачу в список
             self.tasks.append(new_task)
             self.update_task_list()
-
-        self.save_tasks()
+            self.save_tasks()
 
     def update_task_list(self, filter_text="Показать все"):
         """Обновление списка задач."""
@@ -123,16 +216,18 @@ class Planner(QWidget):
             if filter_text == "Показать невыполненные" and task.completed:
                 continue
 
-            item = QListWidgetItem(f"    {task.time} - {task.task}")
+            # Отображаем задачу с датой и временем
+            item = QListWidgetItem(f"    {task.date} {task.time} - {task.task}")
             item.task = task
             item.setBackground(QColor(task.color))  # Устанавливаем цвет фона
             self.task_list.addItem(item)
+
+            # Добавляем чекбокс для отметки выполнения
             checkbox = QCheckBox()
             checkbox.setChecked(task.completed)
             checkbox.stateChanged.connect(lambda state, t=task: self.on_checkbox_changed(t, state))
             self.task_list.setItemWidget(item, checkbox)
     
-
     def on_checkbox_changed(self, task, state):
         """Обработка изменения состояния чекбокса."""
         task.completed = state == Qt.CheckState.Checked.value
@@ -148,7 +243,7 @@ class Planner(QWidget):
         try:
             with open("tasks.txt", "w") as file:
                 for task in self.tasks:
-                    file.write(f"{task.task},{task.time},{task.completed},{task.color}\n")  # Сохраняем цвет
+                    file.write(f"{task.task},{task.date},{task.time},{task.completed},{task.color},{task.reminder_time}\n")
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить задачи: {e}")
 
@@ -160,14 +255,15 @@ class Planner(QWidget):
                 for line in file:
                     task_str = line.strip().split(",")
                     task = Task(
-                        task_str[0],
-                        task_str[1],
-                        task_str[2] == "True",
-                        task_str[3] if len(task_str) > 3 else "#ffffff"  # Загружаем цвет
+                        task_str[0],  # Задача
+                        task_str[1],  # Дата
+                        task_str[2],  # Время
+                        task_str[3] == "True",  # Статус выполнения
+                        task_str[4] if len(task_str) > 4 else "#ffffff",  # Цвет
+                        task_str[5] if len(task_str) > 5 else None  # Время напоминания
                     )
                     self.tasks.append(task)
             self.update_task_list()
-            QMessageBox.information(self, "Успех", "Задачи успешно загружены.")
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить задачи: {e}")
 
@@ -202,7 +298,8 @@ class Planner(QWidget):
             task.task = new_task
             self.update_task_list()
             self.save_tasks()
-    
+
+
 def my_hook(cls, exception, traceback):
     """дебаггер"""
     sys.__excepthook__(cls, exception, traceback)
